@@ -29,4 +29,4 @@ Legal requirements (Iranian or other jurisdiction) are **not** asserted here; ev
 
 ## 3. Hosting location
 
-Data residency (where the DB and backups live) must be confirmed together with hosting (OQ-02). Backups must be encrypted and access-controlled with the same rigor as the primary database.
+Data residency (where the DB and backups live) must be confirmed with the hosting vendor (vendor TBD; single VPS per ADR-012). The off-server backup location is part of this decision. Backups must be encrypted and access-controlled with the same rigor as the primary database.

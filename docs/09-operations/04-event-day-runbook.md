@@ -7,7 +7,7 @@ This is the runbook structure and its technical procedures; names, phone numbers
 | Role | Responsibility |
 |---|---|
 | Incident lead (engineering) | Decisions on Sev-1/2, deploy approvals |
-| Backend on-call | API/DB/worker/outbox |
+| Backend on-call | Fastify process, PostgreSQL, background jobs/outbox, VPS |
 | Frontend/game on-call | Client issues, device problems at booth |
 | Event operator(s) | Admin panel, displays, participant support |
 | Event administrator | Rewards, draws, attempt changes |
@@ -17,7 +17,7 @@ This is the runbook structure and its technical procedures; names, phone numbers
 
 | When | Checklist |
 |---|---|
-| T-7 days | Load test passed; rehearsal done; backups + restore test; secrets rotated; admin accounts created with TOTP; displays provisioned; SMS sender template approved; Snowa production credentials verified with a test record (agreed with Snowa) |
+| T-7 days | Load test passed on production-size VPS (final sizing confirmed); rehearsal done; off-server backups + restore test onto a fresh VPS; TLS renewal verified; secrets rotated; admin accounts created with TOTP; displays provisioned; SMS sender template approved; Snowa production credentials verified with a test record (agreed with Snowa) |
 | T-1 day | Change freeze; event record configured (dates, policies); game settings (ENABLED? attempts); reward rules reviewed (limits!); code pools uploaded; displays tokens set; QR codes tested on site network; SMS balance/quotas confirmed |
 | T-2 h | Health dashboard green; test participant journey on 3 devices (Android/iOS/tablet) against production; display modes set; event status → LIVE |
 | During | Watch dashboard; respond to alerts; operators review flagged top ranks hourly |
@@ -31,7 +31,7 @@ This is the runbook structure and its technical procedures; names, phone numbers
 |---|---|
 | Pause everything (critical bug) | Admin → Event → PAUSED (reason). New sessions stop; in-flight results accepted. Communicate at booth. |
 | Stop one game | Admin → Games → Emergency stop (reason). |
-| Participant says "my game broke" | Look up by phone → check attempt status (ABANDONED/REJECTED?) → if genuine technical interruption, grant bonus attempt (reason). |
+| Participant says "my game broke" | Look up by phone → check attempt status (ABANDONED/REJECTED?) → if genuine exhibition incident, grant bonus attempt (reason required; audited with participant, game, operator, related session). |
 | OTP not arriving | Check OTP health panel; if provider degraded → announce delay; if down > 10 min → switch to secondary provider if configured (ADR-005) or pause onboarding messaging. |
 | Snowa API down | Nothing blocks; monitor backlog; notify Snowa contact; after recovery confirm drain. |
 | Reward out of stock | Alert received → decide: add codes / raise limit / pause rule. |
@@ -39,8 +39,10 @@ This is the runbook structure and its technical procedures; names, phone numbers
 | Display frozen/stale | Check display status in admin; reload display browser; re-auth with token if needed. |
 | Draw executed by mistake | Do not re-run silently. Super Admin voids with reason; create new draw; communicate. |
 | Suspected cheater at top | Review attempt detail; invalidate (reason) and/or exclude from ranking; keep evidence. |
-| API replica failure | Proxy routes around; restart container; check error rate. |
-| DB failover | Follow provider procedure; verify writes; watch late submissions. |
+| Fastify process failure | systemd restarts automatically; if crash-looping: `journalctl -u snowa-games -n 200`, roll back to previous release (`current` symlink) and restart; check error rate and outbox backlog. |
+| PostgreSQL down on the VPS | `systemctl status postgresql`; check disk space/memory; restart PostgreSQL; verify `/readyz`; watch late submissions (clients resubmit within the 10-minute window). |
+| VPS unresponsive / lost | Reboot via provider console; if unrecoverable, provision replacement VPS from the setup runbook, restore latest off-server backup, repoint DNS; announce pause at booth. |
+| Memory pressure / swap thrash | Check process RSS and PostgreSQL connections; restart Fastify if leaking; vertically resize VPS between sessions if load requires (scaling stage 2). |
 
 ## 4. Communication templates
 

@@ -3,13 +3,13 @@
 Implementation-ready technical documentation derived from the approved product source
 [`source/Snowa_Exhibition_Gaming_Platform_Product_Game_Design_Spec_v1.0.docx`](source/) (**SPEC**, v1.0, 28 Sep 2026). The source file is not modified.
 
-Status: **Phase 0 draft — awaiting approval.** No implementation has started.
+Status: **Phase 0 complete — final architecture correction applied (right-sized single-VPS deployment, security and integrity unchanged).** No implementation has started; Phase 1 awaits architecture review.
 
 ## Start here
 
 1. [Technical overview](00-overview/01-technical-overview.md)
 2. [Open questions & assumptions](12-planning/04-open-questions.md) — what still needs decisions
-3. [ADR index](11-decisions/README.md) — proposed architecture decisions
+3. [ADR index](11-decisions/README.md) — architecture decisions and their status
 4. [Phase 1 plan](12-planning/01-phase-1-implementation-plan.md)
 
 ## Index
@@ -35,6 +35,7 @@ Status: **Phase 0 draft — awaiting approval.** No implementation has started.
 - [Localization, RTL & Persian typography](01-architecture/11-localization-and-rtl.md)
 - [PWA & mobile behavior](01-architecture/12-pwa-and-mobile.md)
 - [Analytics & telemetry](01-architecture/13-analytics-and-telemetry.md)
+- [Reuse & branding (future brands)](01-architecture/14-reuse-and-branding.md)
 
 ### 02 — Domain
 - [Domain model & state machine index](02-domain/01-domain-model.md)
@@ -109,7 +110,7 @@ Status: **Phase 0 draft — awaiting approval.** No implementation has started.
 - [Real-time & leaderboard performance](10-performance/03-realtime-and-leaderboard-performance.md)
 
 ### 11 — Decisions
-- [ADR index](11-decisions/README.md) (ADR-001 … ADR-012)
+- [ADR index](11-decisions/README.md) (ADR-001 … ADR-013)
 
 ### 12 — Planning
 - [Phase 1 implementation plan](12-planning/01-phase-1-implementation-plan.md)
@@ -132,7 +133,7 @@ Status: **Phase 0 draft — awaiting approval.** No implementation has started.
 | Live raffle sequence | [Live raffle §5](02-domain/07-live-raffle.md#5-live-raffle-sequence) |
 | External API delivery sequence | [Snowa adapter §6](04-api/08-external-snowa-adapter.md#6-external-api-delivery-sequence) |
 | State machines (onboarding, OTP, game availability, session, attempt, reward grant, ticket, draw, delivery, event) | [State machine index](02-domain/01-domain-model.md#5-state-machine-index) |
-| Architecture (context, containers, modules, trust, deployment, real-time fan-out) | `01-architecture/` |
+| Architecture (context, runtime units, modules, trust, single-VPS deployment + scaling path, real-time flow) | `01-architecture/` |
 
 ## Conventions
 

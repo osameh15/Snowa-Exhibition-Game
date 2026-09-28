@@ -14,7 +14,9 @@
 | CORS | Not enabled (same-origin by proxy) |
 | Secrets | Env/secret store only; separate per environment; rotated before event; CI secret scanning |
 | Dependencies | Lockfile, automated vulnerability scan in CI, minimal dependency policy |
-| Outbound | Worker egress restricted to SMS and Snowa hosts where infrastructure allows |
+| Outbound | Server egress restricted to SMS and Snowa hosts (ufw/egress rules) where infrastructure allows |
+| Robots | `X-Robots-Tag: noindex, nofollow, noarchive` on `/admin/*`, `/display/*` (not a security control) |
+| Namespaces | Participant, admin and display middleware accept only their own cookie; cross-namespace requests rejected |
 | Health endpoints | Expose no data; `/metrics` internal only |
 | File uploads | Only admin CSV (codes): size ≤ 5 MB, parsed as text, never stored as executable/served back |
 | Logging | Structured, redacted (see [Observability](../09-operations/03-observability.md)) |

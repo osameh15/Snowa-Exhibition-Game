@@ -29,39 +29,47 @@ This repository currently contains documentation only. No application code exist
 
 ## Architecture Direction
 
-Status labels follow the [ADR index](docs/11-decisions/README.md): the frontend baseline is **Accepted**; the other decisions below are **Proposed** and awaiting final approval.
+Phase 0 ends with a **right-sized** architecture for a temporary exhibition: infrastructure is simple and inexpensive, while score integrity, anti-cheat, authentication, admin security, raffle and reward integrity, auditability and result durability are **not** simplified. Statuses follow the [ADR index](docs/11-decisions/README.md).
 
-**Frontend** (Accepted baseline — [ADR-001](docs/11-decisions/ADR-001-frontend-architecture.md), [ADR-006](docs/11-decisions/ADR-006-game-runtime.md))
-- Nuxt 4, Vue 3, TypeScript
-- Phaser 3 for gameplay only; all other screens are normal web UI
-- Lazy-loaded game modules and per-game assets
+**Deployment** (Accepted — [ADR-012](docs/11-decisions/ADR-012-deployment-topology.md))
+- One VPS: Nginx or Caddy + static Nuxt build + one Fastify process (systemd) + PostgreSQL
+- No Docker, Redis, Kubernetes, message broker or separate worker in v1
+- Staging: `https://snowa-games.osameh.dev` (1 vCPU / 2 GB); production starting point 2 vCPU / 4 GB, final size from load tests
+- Incremental scaling path: larger VPS → separate PostgreSQL → separate worker → multiple Fastify instances → optional Redis
 
-**Backend** (Proposed — [ADR-002](docs/11-decisions/ADR-002-backend-technology.md))
+**Frontend** (Accepted — [ADR-001](docs/11-decisions/ADR-001-frontend-architecture.md), [ADR-006](docs/11-decisions/ADR-006-game-runtime.md))
+- One Nuxt 4 + Vue 3 + TypeScript app delivered as a static SPA/PWA: participant routes, `/admin`, `/display`
+- Phaser 3 for gameplay only; game modules and assets lazy-loaded per game
+
+**Backend** (Accepted — [ADR-002](docs/11-decisions/ADR-002-backend-technology.md))
 - Node.js 22, TypeScript, Fastify
-- Modular service with an API process and a worker process
+- One modular-monolith process; background jobs (outbox sender, sweepers) run in-process as a separable module
 
-**Data** (Proposed — [ADR-004](docs/11-decisions/ADR-004-persistence.md))
-- PostgreSQL as the single stateful dependency
-- Redis intentionally deferred unless load testing proves it necessary
+**Data** (Accepted — [ADR-004](docs/11-decisions/ADR-004-persistence.md))
+- PostgreSQL 16+ as the only durable/stateful service
+- Redis intentionally deferred unless measurements prove it necessary
 
-**Realtime** (Proposed — [ADR-003](docs/11-decisions/ADR-003-realtime-transport.md))
-- Server-Sent Events for live updates
+**Realtime** (Accepted — [ADR-003](docs/11-decisions/ADR-003-realtime-transport.md))
+- Server-Sent Events in the Fastify process
 - REST snapshot endpoints for state recovery
 - Polling fallback where streaming is unavailable
 
-**Integrity** (Proposed — [ADR-007](docs/11-decisions/ADR-007-reward-architecture.md), [ADR-008](docs/11-decisions/ADR-008-external-integration.md), [ADR-009](docs/11-decisions/ADR-009-authentication-sessions.md), [ADR-010](docs/11-decisions/ADR-010-score-validation.md), [ADR-011](docs/11-decisions/ADR-011-raffle-selection.md))
-- Server-issued game sessions
-- Server-side score replay and validation
+**Integrity & security** (Accepted — [ADR-009](docs/11-decisions/ADR-009-authentication-sessions.md), [ADR-010](docs/11-decisions/ADR-010-score-validation.md), [ADR-008](docs/11-decisions/ADR-008-external-integration.md); Proposed — [ADR-007](docs/11-decisions/ADR-007-reward-architecture.md), [ADR-011](docs/11-decisions/ADR-011-raffle-selection.md))
+- Server-issued game sessions and deterministic server-side score replay; the client score is never trusted
 - Best score, tickets and rewards decided by the backend
+- Server-managed opaque sessions; separate participant / admin / display namespaces; admin Argon2id + mandatory TOTP + RBAC + audit
 - Auditable, reproducible raffle execution
-- Durable outbox for external API delivery
+- Durable PostgreSQL outbox for external API delivery
+
+**Reuse** (Accepted — [ADR-013](docs/11-decisions/ADR-013-reuse-by-configuration.md))
+- Reusable for future brands through a brand profile, configuration and adapters — not multi-tenant SaaS
 
 ## Repository Structure
 
 ```text
 docs/
   00-overview/      technical overview, scope, glossary, traceability matrix
-  01-architecture/  system context, components, client, game runtime, backend, realtime, security boundaries
+  01-architecture/  system context, components, client, game runtime, backend, realtime, trust boundaries, deployment, reuse
   02-domain/        domain model, lifecycles, best score, tickets, rewards, live raffle, audit
   03-data/          schema, entity definitions, invariants, retention
   04-api/           internal APIs, realtime events, external Snowa adapter contract
@@ -85,7 +93,8 @@ Phase 0 contains the implementation-ready architecture. Start from the documenta
 
 Key starting documents:
 - [Technical overview](docs/00-overview/01-technical-overview.md)
-- [Containers & components (architecture)](docs/01-architecture/02-containers-and-components.md)
+- [Runtime units & modules (architecture)](docs/01-architecture/02-containers-and-components.md)
+- [Deployment topology & scaling path](docs/01-architecture/10-deployment-topology.md)
 - [ADR index](docs/11-decisions/README.md)
 - [Open questions & assumptions](docs/12-planning/04-open-questions.md)
 - [Phase 1 implementation plan](docs/12-planning/01-phase-1-implementation-plan.md)
@@ -104,12 +113,9 @@ Application scaffolding will be introduced in Phase 1. See the [Phase 1 implemen
 
 ## Phase 1 Gate
 
-Phase 1 starts when these blocking items are resolved (see [Definition of Ready](docs/12-planning/05-definition-of-ready.md#2-ready-to-start-phase-1-when)):
+Resolved in the final Phase 0 correction: **OQ-01** (backend — ADR-002 accepted), ADR-004 / ADR-009 / ADR-010 accepted, **OQ-02** (single-VPS staging direction; hosting vendor TBD, non-blocking), **OQ-15** (attempt/interruption policy approved), **OQ-21** (local admin accounts + TOTP).
 
-- **OQ-01** — backend technology approval ([ADR-002](docs/11-decisions/ADR-002-backend-technology.md))
-- Approval of [ADR-004](docs/11-decisions/ADR-004-persistence.md) (database), [ADR-009](docs/11-decisions/ADR-009-authentication-sessions.md) (sessions) and [ADR-010](docs/11-decisions/ADR-010-score-validation.md) (score replay)
-- **OQ-02** — hosting provider, region and managed PostgreSQL availability
-- **OQ-15** — product approval of the attempt consumption and interruption policy
+No open question currently blocks Phase 1. The remaining gate is the **architecture review** of this correction (see [Definition of Ready](docs/12-planning/05-definition-of-ready.md#2-ready-to-start-phase-1-when)). Non-blocking open items are tracked in [Open questions](docs/12-planning/04-open-questions.md).
 
 ## License / Confidentiality
 

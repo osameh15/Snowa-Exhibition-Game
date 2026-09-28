@@ -66,7 +66,7 @@ stateDiagram-v2
 | `late_deadline_at` | `deadline_at + late_submission_window_ms` |
 | `config_version_id` | Pinned at ISSUED; used for validation even if a new version is published |
 
-Defaults (event policy, OQ-15): `pause_budget_ms = 60 000`, `submit_grace_ms = 20 000`, `late_submission_window_ms = 600 000`.
+Defaults (event policy; approved — OQ-15 resolved): `pause_budget_ms = 60 000`, `submit_grace_ms = 20 000`, `late_submission_window_ms = 600 000`.
 
 **Open-session rule (INV-02):** `POST /game-sessions` when an ISSUED session exists for the same participant + game returns that session (idempotent re-entry, e.g., after reload). When a STARTED session exists and is before `late_deadline_at`, it returns `409 SESSION_ALREADY_ACTIVE` with the session id; the participant cannot start a parallel attempt.
 
@@ -100,6 +100,8 @@ On INVALIDATED/restore, the scoring module recomputes `best_score` for that part
 
 ## 4. Attempt consumption policy (answers SPEC §8.2)
 
+**Approved (OQ-15 resolved).** An attempt is consumed when a valid game session transitions into **ACTIVE gameplay** — the `ISSUED → STARTED` transition (`STARTED` is the persisted name of the active-gameplay state). Route opening, asset download, tutorial/instructions, loading screens and other pre-game UI never consume an attempt. After ACTIVE gameplay starts, refresh, tab close or browser crash do not resume the attempt; temporary network loss during gameplay is allowed, and a result may be submitted within the 10-minute late-result window provided the session is still valid, the payload passes validation and deterministic replay succeeds.
+
 | Situation | Attempt consumed? |
 |---|---|
 | Server error creating session | No (no session) |
@@ -112,7 +114,7 @@ On INVALIDATED/restore, the scoring module recomputes `best_score` for that part
 | Game disabled during gameplay | Yes; submission still accepted |
 | Result rejected | Yes |
 
-Operator remedy for genuine booth accidents: grant `bonus_attempts` to a participant + game (permission `participant.grant_bonus_attempt`, reason, audit).
+Operator remedy for legitimate exhibition incidents: grant a **Bonus Attempt** (`progress.bonus_attempts += n`) for a participant + game (permission `participant.grant_bonus_attempt`, explicit confirmation, mandatory reason). Every grant is audited with participant, game, administrator/operator, reason, timestamp and the related session/attempt where applicable ([Audit model](08-audit-model.md)).
 
 ## 5. Sequence — game attempt (full pipeline)
 
@@ -125,7 +127,7 @@ sequenceDiagram
   participant API as API
   participant DB as PostgreSQL
   participant RT as Realtime hub
-  participant W as Worker
+  participant W as Outbox sender (jobs)
   participant EXT as Snowa API
   P->>C: tap game card (lobby)
   C->>C: import game chunk · show pre-game instructions
@@ -155,7 +157,7 @@ sequenceDiagram
   API->>DB: SELECT rank (indexed)
   API-->>C: 200 ResultModel {attemptScore, bestScore, isNewBest, rank, baseTicket, extraRewards, attemptsUsed, attemptsAllowed}
   C->>C: clear pending-result · render result
-  API->>RT: NOTIFY attempt_accepted, best_score_changed, leaderboard_changed
+  API->>RT: publish (after commit) attempt_accepted, best_score_changed, leaderboard_changed
   RT-->>RT: admin feed / displays / leaderboard viewers
   W->>DB: claim external_delivery (SKIP LOCKED)
   W->>EXT: deliver (adapter)

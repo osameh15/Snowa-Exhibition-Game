@@ -21,7 +21,7 @@ Game stage: fixed logical resolution (e.g., 720×1280 portrait) scaled with Phas
 | Viewport height | Dynamic toolbar | Dynamic toolbar | Use `100dvh` / `visualViewport`; never `100vh` for game stage |
 | Safe areas | Cutouts | Notch, home indicator | `viewport-fit=cover`; `env(safe-area-inset-*)` padding for HUD and CTAs [SPEC §24.1] |
 | Virtual keyboard | Resizes viewport | Overlays; scrolls | Auth screens: input + CTA stay visible (`visualViewport` resize listener; `scrollIntoView` on focus) |
-| OTP autofill | WebOTP API (`navigator.credentials.get({otp})`) requires SMS last line `@play.<domain> #12345` | `autocomplete="one-time-code"` suggests code from SMS | SMS template must include WebOTP line (OQ-03); manual entry always works |
+| OTP autofill | WebOTP API (`navigator.credentials.get({otp})`) requires SMS last line `@snowa-games.osameh.dev #12345` (staging; production domain TBD) | `autocomplete="one-time-code"` suggests code from SMS | SMS template must include WebOTP line (OQ-03); manual entry always works |
 | Accidental scroll / pull-to-refresh | Pull-to-refresh | Rubber-band | During gameplay: `overscroll-behavior: none` on html/body, `touch-action: none` on canvas, prevent default on `touchmove` inside stage [SPEC §20.3] |
 | Double-tap zoom | Possible | Possible | `touch-action: manipulation` on buttons; no `user-scalable=no` globally (accessibility) — only disable gestures on the game stage |
 | Long-press menus / text selection | Context menu | Callout, magnifier | `-webkit-touch-callout: none; user-select: none` on game stage only |
@@ -43,7 +43,7 @@ Game stage: fixed logical resolution (e.g., 720×1280 portrait) scaled with Phas
 | On phone/OTP screen | Challenge id restored from `sessionStorage`; continue |
 | In lobby/result/leaderboard | Normal reload; state re-fetched |
 | Pre-game, session ISSUED | Session reused (`POST /game-sessions` returns the open ISSUED session) — no attempt consumed |
-| During gameplay (STARTED) | Gameplay not resumable; server keeps session until deadline; app shows "attempt interrupted"; attempt ends `ABANDONED` at deadline (consumed). OQ-15 |
+| During gameplay (STARTED) | Gameplay not resumable; server keeps session until deadline; app shows "attempt interrupted"; attempt ends `ABANDONED` at deadline (consumed). Approved policy (OQ-15 resolved) |
 | After game end, before result ack | Pending payload resubmitted automatically; result shown |
 | PWA reopened next day | Session cookie still valid (within TTL) → lobby; otherwise login |
 

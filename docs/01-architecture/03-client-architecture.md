@@ -21,6 +21,8 @@
 | `/leaderboard/:slug?` | Leaderboard | participant | `GET /leaderboards/:slug` (+ optional SSE while visible) |
 | `/me` | Profile: best scores, tickets, rewards | participant | `GET /me/summary` |
 | `/rules`, `/faq` | Static Persian content (optional) | none | static |
+| `/admin/*` | Admin control room (lazy chunk; see [Admin architecture](06-admin-architecture.md)) | admin session + MFA | `/api/admin/v1/*` |
+| `/display/*` | Public booth display (lazy chunk) | display session (read-only) | `/api/display/v1/*` |
 
 Navigation guards (client) mirror server rules only for UX; the server enforces them again (a `401`/`403`/`409` from any call routes the user to the correct step).
 
@@ -84,7 +86,7 @@ flowchart TD
   G -- no --> NORM["Normal routing"]
 ```
 
-Gameplay itself is **not resumable** after a page reload (game state lives in memory; resuming would allow "reload until lucky layout" and timer manipulation). This policy is product-visible and tracked as OQ-15.
+Gameplay itself is **not resumable** after a page reload (game state lives in memory; resuming would allow "reload until lucky layout" and timer manipulation). This policy is product-approved (OQ-15 resolved).
 
 ## 6. Localization (summary)
 

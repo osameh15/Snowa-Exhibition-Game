@@ -14,7 +14,7 @@ flowchart LR
   end
   subgraph T["TRUSTED (platform)"]
     RP["Reverse proxy"]
-    API["api / worker"]
+    API["Fastify (API + in-process jobs)"]
     DB[("PostgreSQL")]
     SEC["Secrets (env / secret store)"]
   end
@@ -39,7 +39,7 @@ flowchart LR
 | TB-2 Display → API | display token, read requests | Read-only projection; no PII beyond public display name policy |
 | TB-3 Admin → API | config changes, draw commands, exports | Strong auth (password + TOTP), RBAC per endpoint, idempotency, audit, optional IP allowlist |
 | TB-4 API → SMS | phone, OTP text | Only the SMS text leaves; credentials server-side only |
-| TB-5 Worker → Snowa | agreed result payload | Only fields in the approved contract; credentials server-side only |
+| TB-5 Outbox sender (jobs) → Snowa | agreed result payload | Only fields in the approved contract; credentials server-side only |
 
 ## 3. What the client can and cannot influence
 

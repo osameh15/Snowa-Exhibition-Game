@@ -1,70 +1,61 @@
 # Container and Component Architecture
 
-## 1. Containers
+v1 runs on one VPS ([Deployment topology](10-deployment-topology.md)). "Container" below means a logical runtime unit (C4 sense), not a Docker container — Docker is not used in v1.
+
+## 1. Runtime units
 
 ```mermaid
 flowchart LR
   subgraph Browser["Browser (untrusted)"]
-    PWA["participant-app<br/>Nuxt 4 SPA<br/>+ service worker"]
-    GR["game runtime chunks<br/>Phaser 3 + game modules<br/>(lazy)"]
-    ADMAPP["admin-app<br/>Nuxt 4 SPA<br/>(incl. /display)"]
-    PWA -. dynamic import .-> GR
+    WEB["Nuxt 4 SPA/PWA (one app)<br/>participant · /admin · /display<br/>+ service worker"]
+    GR["Game runtime chunks<br/>Phaser 3 + selected game module<br/>(lazy)"]
+    WEB -. dynamic import .-> GR
   end
 
-  subgraph Edge["Edge"]
-    RP["Reverse proxy<br/>TLS, static files, compression,<br/>coarse rate limits, SSE-friendly buffering off"]
+  subgraph VPS["Single VPS"]
+    RP["Reverse proxy (Nginx or Caddy)<br/>TLS, static files, /api proxy,<br/>coarse rate limits, SSE buffering off"]
+    API["Fastify process (systemd)<br/>REST + SSE + in-process jobs"]
+    PG[("PostgreSQL 16+")]
   end
 
-  subgraph App["Application tier"]
-    API1["api (replica 1)"]
-    API2["api (replica 2)"]
-    WRK["worker (1 active)"]
-  end
-
-  subgraph Data["Data tier"]
-    PG[("PostgreSQL 16+<br/>primary")]
-    BK[("Backups / WAL archive")]
-  end
-
-  PWA -->|/api/v1 REST, SSE| RP
-  ADMAPP -->|/api/admin/v1, /api/display/v1| RP
-  RP --> API1 & API2
-  API1 & API2 <-->|SQL, LISTEN/NOTIFY| PG
-  WRK <-->|SQL, SKIP LOCKED| PG
-  PG --> BK
-  API1 & API2 -->|OtpSender| SMS["SMS provider"]
-  WRK -->|SnowaResultAdapter| EXT["Snowa API"]
+  WEB -->|"/api/v1, /api/admin/v1, /api/display/v1<br/>REST + SSE"| RP
+  RP --> API
+  API <-->|SQL, row locks, SKIP LOCKED| PG
+  API -->|OtpSender| SMS["SMS provider"]
+  API -->|SnowaResultAdapter| EXT["Snowa API"]
+  PG -.-> BK[("Off-server backups")]
 ```
 
-| Container | Technology (recommended) | Responsibility | Scaling |
+| Unit | Technology | Responsibility | v1 count |
 |---|---|---|---|
-| participant-app | Nuxt 4, Vue 3, TS, client-side rendering, service worker | Auth screens, lobby, pre-game, HUD overlay, result, leaderboard, rewards/profile | Static files; CDN/proxy cache |
-| game runtime chunks | Phaser 3 + per-game module | Gameplay rendering/input, deterministic simulation, action log | Lazy per game |
-| admin-app | Nuxt 4, Vue 3, TS | Control room, config, raffle, reports, audit, display mode | Static files |
-| reverse proxy | Caddy or Nginx | TLS, HTTP/2, static assets, `/api` routing, request size limits, IP rate limits | 1 (+ standby) |
-| api | Node.js 22 + TS + Fastify | All synchronous REST, SSE streams, validation, transactions | Stateless, 2+ replicas |
-| worker | Same codebase, separate entrypoint | Outbox delivery, session expiry sweeper, reconciliation, scheduled aggregates | 1 active (jobs use row locks, so 2 are safe) |
-| PostgreSQL | 16+ | Source of truth, row locking, NOTIFY fan-out | Vertical; replica for backup/HA |
+| Web app | Nuxt 4, Vue 3, TS, static SPA/PWA | Participant screens; admin control room under `/admin`; booth display under `/display`; route-level code splitting so participants never download admin/display code | 1 build |
+| Game runtime chunks | Phaser 3 + per-game module | Gameplay rendering/input, deterministic simulation, action log | lazy per game |
+| Reverse proxy | Nginx **or** Caddy | TLS, HTTP/2, static assets, `/api` routing, body limits, IP-level limits, security/robots headers | 1 |
+| Fastify process | Node.js 22 + TS | All REST, SSE, validation, transactions, background jobs (outbox sender, sweepers, reconciliation) | 1 |
+| PostgreSQL | 16+ | Source of truth, row locking, outbox, rate-limit counters | 1 (same VPS) |
+
+No in-memory state is authoritative: caches, SSE ring buffers and job schedules are recomputable; everything durable is in PostgreSQL.
 
 ## 2. Backend modules (modular monolith)
 
-Modules communicate through in-process service interfaces; each owns its tables. No module reads another module's tables directly except through the owning module's query functions (enforced by code review and folder boundaries).
+Modules communicate through in-process service interfaces; each owns its tables. No module reads another module's tables directly except through the owning module's query functions (enforced by import lint rules). This boundary discipline is what allows later extraction (scaling stages 4–5) without rewriting domain logic.
 
 ```mermaid
 flowchart TB
-  subgraph api["api / worker process"]
+  subgraph proc["Fastify process"]
     AUTH["identity<br/>(OTP, participant sessions, profile)"]
-    CAT["catalog<br/>(events, games, settings, config versions)"]
+    CAT["catalog<br/>(brand profile ref, events, games, settings, config versions)"]
     PLAY["play<br/>(game sessions, attempts, validation)"]
     SCORE["scoring<br/>(best score, leaderboard)"]
     TIX["tickets<br/>(raffle tickets)"]
     REW["rewards<br/>(definitions, rules, inventory, grants)"]
     DRAW["raffle<br/>(draws, snapshots, selection, reveal)"]
-    ADMINM["admin-identity<br/>(admin users, RBAC, admin sessions)"]
+    ADMINM["admin-identity<br/>(admin users, MFA, RBAC, admin sessions, display devices)"]
     AUD["audit"]
-    RT["realtime<br/>(SSE hub, NOTIFY bridge)"]
+    RT["realtime<br/>(SSE hub + RealtimeBus port)"]
     INT["integration<br/>(outbox, Snowa adapter)"]
     ANA["analytics<br/>(event ingest)"]
+    JOBS["jobs<br/>(scheduler + runners: outbox sender, sweepers,<br/>reconciliation, re-evaluation)"]
   end
   GC["packages/game-core<br/>(pure TS: PRNG, simulation, scoring, validators)"]
 
@@ -84,46 +75,52 @@ flowchart TB
   CAT --> AUD
   CAT --> RT
   ADMINM --> AUD
+  JOBS --> INT
+  JOBS --> PLAY
+  JOBS --> REW
+  JOBS --> SCORE
 ```
 
 | Module | Owns tables | Key operations |
 |---|---|---|
 | identity | `participants`, `otp_challenges`, `participant_sessions`, `consent_records` | request/verify OTP, session create/revoke, set name |
-| catalog | `events`, `games`, `game_settings`, `game_config_versions` | read lobby config, admin toggles, attempt limits |
+| catalog | `events`, `games`, `game_settings`, `game_config_versions` | read lobby config, admin toggles, attempt limits, brand profile reference |
 | play | `game_sessions`, `attempts`, `attempt_payloads`, `attempt_flags` | issue/start/submit/expire sessions, validate |
 | scoring | `participant_game_progress` | best-score update, rank queries, leaderboard pages |
 | tickets | `raffle_tickets` | grant base ticket, grant reward tickets, void |
-| rewards | `reward_definitions`, `reward_rules`, `reward_codes`, `reward_grants` | evaluate rules, allocate inventory, fulfillment |
+| rewards | `reward_definitions`, `reward_rules`, `reward_codes`, `reward_grants`, `reward_participant_counters` | evaluate rules, allocate inventory, fulfillment |
 | raffle | `draws`, `draw_entries`, `draw_winners` | preview, freeze, select, reveal |
 | admin-identity | `admin_users`, `admin_sessions`, `display_devices` | login, TOTP, RBAC checks, display tokens |
 | audit | `audit_log` | append, query |
-| realtime | — (in-memory ring buffer) | publish, subscribe, replay since id |
+| realtime | — (in-memory ring buffer) | publish via `RealtimeBus`, subscribe, replay since id |
 | integration | `external_deliveries`, `external_delivery_attempts` | enqueue (in caller tx), deliver, retry, replay |
 | analytics | `analytics_events` | batch ingest, aggregates |
+| jobs | `job_runs` (optional bookkeeping) | schedule and run background tasks; each task claims rows with locks so it is safe to run in-process now and in a separate worker (or several) later |
 
-## 3. Monorepo layout (recommended, for Phase 1)
+## 3. Monorepo layout (for Phase 1)
 
 ```text
 apps/
-  participant/        Nuxt 4 participant SPA
-  admin/              Nuxt 4 admin SPA (+ /display routes)
-  server/             Fastify API + worker entrypoints
+  web/                Nuxt 4 SPA/PWA: participant routes, /admin routes, /display routes
+  server/             Fastify: api entrypoint (with in-process jobs); optional worker entrypoint later
 packages/
   contracts/          zod schemas + TS types for REST/SSE payloads (shared)
   game-core/          deterministic PRNG, per-game simulation & scoring, validators (shared, no DOM, no Phaser)
   games/              Phaser scenes per game (client only), depends on game-core
   i18n-fa/            Persian locale files, number/phone/date formatting helpers
   ui/                 shared Vue components + design tokens (RTL-safe)
+brands/
+  snowa/              brand profile: logo, theme tokens, Persian copy overrides, game titles, product imagery
 ```
 
-Rationale: `game-core` is imported by **both** the Phaser runtime and the server validator, so the score the client shows and the score the server computes come from the same code ([ADR-010](../11-decisions/ADR-010-score-validation.md)).
+`game-core` is imported by **both** the Phaser runtime and the server validator, so the score shown by the client and the authoritative score come from the same code ([ADR-010](../11-decisions/ADR-010-score-validation.md)). Brand-specific material lives in `brands/<key>/` and event data, not in platform code ([Reuse & branding](14-reuse-and-branding.md)).
 
 ## 4. Ownership matrix (what is authoritative where)
 
 | Data / behavior | Authoritative component | Persisted | Cached | Computed |
 |---|---|---|---|---|
-| Participant identity | identity module / `participants` | yes | session lookup (per request) | — |
-| Game enabled/attempt limit | catalog / `game_settings` | yes | in-process 2 s TTL, invalidated by NOTIFY | — |
+| Participant identity | identity module / `participants` | yes | — (indexed lookup per request) | — |
+| Game enabled/attempt limit | catalog / `game_settings` | yes | in-process 2 s TTL; always re-read inside session create/start tx | — |
 | Game parameters | `game_config_versions` (immutable) | yes | in-process indefinitely (immutable) | score ceilings computed at load |
 | In-game running score | game runtime (display only) | no | — | client |
 | Attempt score | play module (server replay) | yes | — | server |

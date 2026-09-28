@@ -8,6 +8,7 @@ Base: `/api/admin/v1`. Auth: admin session cookie with completed MFA. Every muta
 |---|---|---|
 | `POST /auth/login` `{username, password}` | — | → `{mfaRequired:true, mfaToken}` (short-lived); generic error on bad credentials; lockout after 5 failures / 15 min |
 | `POST /auth/mfa` `{mfaToken, totp}` | — | Sets `sx_as` cookie |
+| `POST /auth/step-up` `{totp}` | any | Records fresh MFA on the session (valid 5 min); T4 endpoints return `403 STEP_UP_REQUIRED` without it |
 | `POST /auth/logout` | any | |
 | `GET /auth/me` | any | role, permissions list (UI gating only) |
 

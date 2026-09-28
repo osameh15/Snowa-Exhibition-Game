@@ -37,12 +37,13 @@ Why cookies rather than bearer tokens in `localStorage`: immune to token theft v
 
 | Aspect | Design |
 |---|---|
-| Accounts | Named local accounts (OQ-21 may replace with SSO) |
+| Accounts | Named local accounts (v1; SSO possible later) |
 | Password | ≥ 12 chars, argon2id (memory ≥ 64 MB, t=3), breached-password check list (offline) |
 | MFA | TOTP (RFC 6238), mandatory; recovery codes (Super Admin reset) |
 | Lockout | 5 failures / 15 min; alerts |
-| Session | `sx_as` cookie on admin origin, idle 30 min, absolute 12 h, re-auth (TOTP) for T4 actions older than 15 min |
-| Network | Optional IP allowlist on admin origin |
+| Session | `sx_as` cookie (`HttpOnly; Secure; SameSite=Strict; Path=/api/admin`), separate namespace from participant/display, idle 30 min, absolute 12 h; step-up TOTP (≤ 5 min old) for T4 actions |
+| Network | Optional defense in depth only: reverse-proxy IP allowlist, VPN, extra proxy auth on staging; admin security never depends on network location |
+| Crawlers | `/admin/*`, `/display/*`: `X-Robots-Tag: noindex, nofollow, noarchive` |
 
 ## 4. Display authentication
 

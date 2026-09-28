@@ -38,7 +38,7 @@ Concept art is explicitly "visual direction, not pixel-perfect UI" [SPEC Appendi
 |---|---|---|
 | AMB-01 | "Valid completion" is not defined (does score 0 count? a rejected result?). | Defined as attempt status `ACCEPTED` or `ACCEPTED_FLAGGED`; score may be 0. Minimum-engagement rule for ticket is OQ-18. |
 | AMB-02 | When exactly an attempt is consumed [SPEC §8.2]. | Consumed at session **start** (after assets load and the participant presses start); ISSUED-but-unstarted sessions never consume. See [Game lifecycle](../02-domain/03-game-session-attempt-lifecycle.md). |
-| AMB-03 | Refresh/background policy [SPEC §22.2]. | Pause budget + hard deadline + no gameplay resume after page reload; policy is versioned config. OQ-15 for product sign-off. |
+| AMB-03 | Refresh/background policy [SPEC §22.2]. | Pause budget + hard deadline + no gameplay resume after page reload; policy is versioned config. Approved (OQ-15 resolved). |
 | AMB-04 | Whether tickets are weighted entries in a draw. | SPEC §13.3 "additional raffle ticket adds extra entries" implies weighting. Recommended: weighted by active ticket count; confirmation required (OQ-08). |
 | AMB-05 | Which score is sent externally [SPEC §17.3]. | Default: current best score; canonical model carries both attempt and best score (OQ-04). |
 | AMB-06 | Fridge Rush negative scores (wrong placement −20). | Recommended: running score floored at 0 (tuning parameter, OQ-19). |

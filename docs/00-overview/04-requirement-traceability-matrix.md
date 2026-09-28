@@ -18,7 +18,7 @@ Test ID prefixes: `U` unit, `GL` game-logic golden/property, `I` backend integra
 | PD-08 | Dynamic extra rewards without removing core | rewards module | [Rewards](../02-domain/06-rewards.md), [Reward mgmt](../06-admin/03-game-and-reward-control.md) | `reward_*` tables, admin reward API | RW-02…14 | AC-010, AC-014 |
 | PD-09 | Server authority for attempts, scores, tickets, rewards, winners | api (all modules) | [Trust boundaries](../01-architecture/09-trust-boundaries.md), [Validation](../05-games/02-score-validation-framework.md), ADR-010 | result pipeline | GL, I, security tests | AC-016, AC-019 |
 | PD-10 | Filterable live draw | raffle module, admin app, display | [Live raffle](../02-domain/07-live-raffle.md), [Raffle API](../04-api/06-raffle-api.md) | `draws`, `draw_entries`, `draw_winners` | RF-01…17 | AC-015, AC-016 |
-| PD-11 | Persist first, then external API with retries | integration module, worker | [Snowa adapter](../04-api/08-external-snowa-adapter.md), ADR-008 | `external_deliveries` | I (outbox), F2 | AC-018 |
+| PD-11 | Persist first, then external API with retries | integration module, `jobs` outbox sender | [Snowa adapter](../04-api/08-external-snowa-adapter.md), ADR-008 | `external_deliveries` | I (outbox), F2 | AC-018 |
 | PD-12 | Mobile-first portrait; tablet supported; desktop for admin/display | apps | [PWA & mobile](../01-architecture/12-pwa-and-mobile.md), [Device matrix](../08-quality/02-device-browser-matrix.md) | — | D | AC-021 |
 
 ## 2. SPEC Appendix B requirements

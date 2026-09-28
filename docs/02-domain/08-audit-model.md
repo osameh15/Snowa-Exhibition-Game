@@ -11,7 +11,7 @@ Audit log = **who did what to which object, when, from where, why, with before/a
 | Admin identity | `admin.login_succeeded`, `admin.login_failed`, `admin.totp_failed`, `admin.logout`, `admin.user_created`, `admin.role_changed`, `admin.password_reset`, `admin.disabled` |
 | Event & games | `event.status_changed`, `event.policy_changed`, `game.state_changed`, `game.emergency_stop`, `game.attempt_limit_changed`, `game.config_version_published` |
 | Rewards | `reward.definition_created/updated`, `reward.rule_created/updated/activated/paused`, `reward.codes_uploaded`, `reward.grant_revoked`, `reward.fulfillment_updated` |
-| Participants | `participant.viewed_phone` (full phone reveal), `participant.blocked/unblocked`, `participant.name_hidden/edited`, `participant.bonus_attempt_granted`, `participant.erased` |
+| Participants | `participant.viewed_phone` (full phone reveal), `participant.blocked/unblocked`, `participant.name_hidden/edited`, `participant.bonus_attempt_granted` (records participant, game, actor, reason, timestamp, related `game_session_id`/`attempt_id` when applicable, count), `participant.erased` |
 | Scores & tickets | `attempt.invalidated`, `attempt.restored`, `attempt.flags_cleared`, `ticket.voided/reinstated`, `ticket.admin_granted`, `progress.ranking_excluded` |
 | Raffle | `draw.created`, `draw.previewed`, `draw.execute_requested`, `draw.executed`, `draw.presented`, `draw.revealed`, `draw.voided`, `draw.cancelled` |
 | Integration | `delivery.retry_requested`, `delivery.bulk_retry`, `delivery.marked_resolved`, `integration.config_changed` |

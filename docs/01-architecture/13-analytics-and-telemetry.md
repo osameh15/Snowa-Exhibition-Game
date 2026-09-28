@@ -40,8 +40,8 @@ Naming: `snake_case`, past tense for facts. Common envelope:
 | `leaderboard_viewed` | client | `game`, `context` (`lobby`/`result`/`nav`) | |
 | `raffle_started` | server (admin action) | `draw_id`, `eligible_count`, `winner_count` | Also audit |
 | `raffle_completed` | server | `draw_id`, `winner_count` | SPEC `draw_executed` |
-| `outbound_api_success` | worker | `game`, `attempt_count` | |
-| `outbound_api_failure` | worker | `category` (`timeout`/`5xx`/`4xx`/`auth`), `final` (bool) | SPEC `external_delivery_status` |
+| `outbound_api_success` | outbox sender (jobs) | `game`, `attempt_count` | |
+| `outbound_api_failure` | outbox sender (jobs) | `category` (`timeout`/`5xx`/`4xx`/`auth`), `final` (bool) | SPEC `external_delivery_status` |
 | `pwa_installed` | client | — | optional |
 
 Server-emitted events are written **in the same transaction** as the fact (so counts match), client events via `POST /api/v1/analytics/events` (batched, `sendBeacon` on `pagehide`, max 50 events/batch, rate-limited, unauthenticated allowed with `anon_id`).

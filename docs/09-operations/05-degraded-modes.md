@@ -12,7 +12,7 @@ Principle [SPEC §22.1]: fail safely, never lose accepted gameplay data, never d
 | Refresh after game end | pending payload in storage | Result appears after resubmission | — | Idempotent | Automatic |
 | Browser crash | same as refresh | same | — | same | same |
 | PWA reopened later | session cookie valid | Lobby with current state | — | — | — |
-| Backend restart (rolling) | health checks | Brief retry; no visible failure for idempotent calls | SSE reconnect | Committed tx safe | Automatic |
+| Backend restart (deploy or crash; single process) | health checks, systemd | Gap of a few seconds; idempotent calls retried; gameplay continues locally | SSE reconnect + `resync` | Committed tx and outbox rows safe; `IN_FLIGHT` deliveries recovered by lease expiry | systemd `Restart=always` |
 | Full backend outage | health fails | Persian "connection problem" + retry; gameplay in progress continues locally; results held locally | Displays stale banner | Pending results in localStorage; late window 10 min | Resubmit on recovery |
 | Duplicate result submission | session SUBMITTED | Same result shown | — | No duplicates | — |
 | DB transient error | retryable error | Transparent retry (server) then client retry | — | Tx atomic | Automatic |
@@ -20,7 +20,8 @@ Principle [SPEC §22.1]: fail safely, never lose accepted gameplay data, never d
 | Admin clicks raffle twice | idempotency/row lock | — | Same draw shown | Single draw | — |
 | Live display disconnect | heartbeat | — | Display "reconnecting"; admin sees display offline | Reveal state persisted | Auto reconnect |
 | High network latency | client timing | Loading states; gameplay unaffected; submission retries | — | Idempotent | — |
-| CDN/cache serving stale shell | build hash mismatch | Service worker update prompt on next navigation; API compatibility via `426` | — | Server validates versions | Purge cache; hashed assets |
+| Proxy/SW cache serving stale shell | build hash mismatch | Service worker update prompt on next navigation; API compatibility via `426` | — | Server validates versions | Purge cache; hashed assets |
 | Stale game config in client | `configChecksum` mismatch | Session creation returns current config each time → never stale | — | Validation pinned to session version | — |
-| Worker down | outbox age, sweeper lag | None | Backlog grows | Sessions lazily expired on access | Restart worker |
+| Background jobs stalled (in-process `jobs` module) | outbox age, sweeper lag | None | Backlog grows | Outbox durable; sessions lazily expired on access | Restart Fastify; investigate job logs |
 | Disk full / DB read-only | alerts | 503 on writes; lobby may still read | Alerts | No partial writes | Ops intervention |
+| VPS failure (single point of failure) | uptime monitor | App unreachable; in-progress results kept in `localStorage` (late window) | Displays stale | Committed data on disk; off-server backups | Reboot; or rebuild VPS + restore backup (RPO/RTO in [Backup](06-backup-recovery-and-reconciliation.md#2-recovery-objectives)) |

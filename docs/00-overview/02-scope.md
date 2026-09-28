@@ -64,4 +64,4 @@ No expected-scale figures exist in SPEC (§32 lists this as open). To make desig
 | Admin + public display connections | ≤ 30 | 100 |
 | Event duration | 1–5 days | — |
 
-If real figures exceed the load-test targets, [ADR-004](../11-decisions/ADR-004-persistence.md) and [ADR-003](../11-decisions/ADR-003-realtime-transport.md) define the upgrade paths (Redis cache/pub-sub, more API replicas).
+These are **assumptions**, not measurements: infrastructure MUST NOT be sized from them alone. Phase 1 includes load tests on the staging VPS before final production sizing. If real figures exceed the load-test targets, the [incremental scaling path](../01-architecture/10-deployment-topology.md#5-incremental-scaling-path-future-options-not-v1-requirements), [ADR-004](../11-decisions/ADR-004-persistence.md) and [ADR-003](../11-decisions/ADR-003-realtime-transport.md) define the upgrade paths (larger VPS, separate PostgreSQL, separate worker, more Fastify instances, Redis cache/pub-sub).

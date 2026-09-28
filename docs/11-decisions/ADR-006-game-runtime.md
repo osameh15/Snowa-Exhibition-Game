@@ -1,6 +1,6 @@
 # ADR-006: Game Runtime
 
-Status: **Accepted (baseline: Phaser 3)**; structure below **Proposed**.
+Status: **Accepted** (Phaser 3 baseline; shared deterministic `game-core` structure confirmed together with ADR-010).
 
 ## Context
 Three 2.5D-looking, touch-driven, short games; 60 FPS on mid-range Android; lazy loading per game; gameplay must be replayable server-side for validation.

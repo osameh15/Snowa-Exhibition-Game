@@ -12,7 +12,7 @@ data: {"v":1,"ts":"2026-10-01T09:30:12.345Z","game":"spin-perfect","topChanged":
 : ping
 ```
 
-- `id` = `<epochMs>-<replicaSeq>`; clients send `Last-Event-ID` on reconnect.
+- `id` = `<epochMs>-<seq>`; clients send `Last-Event-ID` on reconnect.
 - `retry: 3000` sent on connect.
 - `v` = payload schema version.
 - Server sends `event: resync` when it cannot replay from the given id → client re-fetches all snapshots for that view.

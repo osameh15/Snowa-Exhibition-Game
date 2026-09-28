@@ -4,13 +4,41 @@ Functional detail is in `06-admin/`. This document covers structure, deployment 
 
 ## 1. Placement
 
-| Decision | Recommendation | Why |
+| Decision | v1 choice | Why |
 |---|---|---|
-| Separate app | `apps/admin` separate Nuxt SPA from `apps/participant` | Participant bundle stays small; admin can live on a separate origin with IP allowlisting and separate cookies |
-| Origin | `admin.<domain>` (OQ-27) | Cookie isolation; WAF/allowlist per origin; no admin code shipped to phones |
-| Public display | Route `/display/:displayId` inside admin app, authenticated by display token | Shares leaderboard/draw components; no admin permissions |
-| API namespace | `/api/admin/v1/*`, `/api/display/v1/*` | Distinct auth middleware and rate limits |
-| Language | Persian/RTL (SPEC §5); bilingual optional (OQ-11) | Same i18n package as participant app |
+| App | `/admin` routes inside the single Nuxt app, lazily loaded as their own chunk | One build/deployment; participants never download admin code |
+| Public display | `/display/*` routes of the same app, authenticated by a display token | Shares leaderboard/draw components; never admin permissions |
+| Origin | Same origin as the participant app (`https://snowa-games.osameh.dev` on staging) | Simple; security comes from server-side authorization, not from URL secrecy |
+| API namespace | `/api/admin/v1/*`, `/api/display/v1/*` | Distinct auth middleware, cookies and rate limits |
+| Language | Persian/RTL (SPEC §5); bilingual optional (OQ-11) | Same i18n package |
+
+## 1a. Admin security baseline (non-negotiable)
+
+The admin area is **not** protected by being hidden. Every admin API call is authorized on the server.
+
+| Control | Requirement |
+|---|---|
+| Identity namespace | Separate `admin_users` / `admin_sessions`; cookie `sx_as` (`HttpOnly; Secure; SameSite=Strict; Path=/api/admin`) — distinct from participant `sx_ps` and display `sx_ds` |
+| Accounts | Local named accounts in v1 (OQ-21 resolved); no shared logins |
+| Passwords | Argon2id |
+| MFA | Mandatory TOTP for every admin role |
+| Step-up | Fresh TOTP (≤ 5 min) for T4 operations: execute/void draw, manual ticket grant/void, invalidate/restore attempt, activate unlimited or changed active reward rules, bulk export, participant erase ([Operator safety UX](../06-admin/07-operator-safety-ux.md)) |
+| CSRF / Origin | `SameSite=Strict`, required `X-Requested-With` header, `Origin` must equal the deployment origin on every mutating request |
+| Brute force | Per-username and per-IP login limits, lockout, alerts |
+| Revocation | Super Admin can disable accounts and revoke all sessions immediately |
+| RBAC | Permission checked per endpoint on the server ([Roles](../06-admin/02-roles-and-permissions.md)); Vue hides buttons only for UX |
+| Cross-namespace | Participant and display sessions are **rejected** by admin middleware; admin middleware never accepts `sx_ps`/`sx_ds`; display sessions never gain admin permissions |
+| Audit | Every admin mutation and every login/MFA event audited ([Audit model](../02-domain/08-audit-model.md)) |
+| Robots | `/admin/*` and `/display/*` responses carry `X-Robots-Tag: noindex, nofollow, noarchive` and a matching `<meta name="robots">`; excluded in `robots.txt` (not a security control) |
+| Same-origin XSS risk | Because admin and participant routes share an origin, an XSS bug in any route could call admin APIs from an admin's browser. Mitigations: strict CSP (self-only scripts, no inline), no `v-html` with untrusted content, cookie `Path` scoping, step-up TOTP for T4 actions, and operators SHOULD use a dedicated browser profile for admin work. Moving admin to its own subdomain is a documented future hardening option |
+
+## 1b. Optional network hardening (defense in depth only)
+
+Core admin security MUST NOT depend on these, because exhibition connectivity changes:
+
+- Reverse-proxy IP allowlist for `/admin` and `/api/admin` when booth/operator IPs are predictable.
+- VPN or private network access to the admin paths if operationally practical.
+- Additional reverse-proxy authentication (e.g., HTTP basic auth) in front of the whole staging site or `/admin` on staging.
 
 ## 2. Control-room layout (from SPEC §16 and concept CA-09)
 

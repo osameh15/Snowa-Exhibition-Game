@@ -10,7 +10,9 @@ Source: SPEC §16 ("critical actions require confirmation"), §16.4, §16.5. Pri
 | T1 — reversible, low impact | display mode switch, reveal next, fulfillment note | single click; undo where possible; toast |
 | T2 — reversible, participant-visible | enable/disable game, attempt limit change, pause reward rule, bonus attempt | confirmation dialog summarizing effect + impact preview |
 | T3 — high impact | emergency stop, event pause/close, activate reward rule, invalidate attempt, void ticket, block participant, revoke grant | dialog + mandatory reason + explicit impact numbers |
-| T4 — irreversible / fairness critical | execute draw, void draw, publish config version, unlimited reward, erase participant, bulk retry | dialog + reason (where applicable) + **typed confirmation** (e.g., type the winner count and event slug) + Super Admin where specified |
+| T4 — irreversible / fairness critical | execute draw, void draw, invalidate/restore attempt, manual ticket grant/void, change or activate active reward rules with unlimited or high-value inventory, publish config version, erase participant, bulk export, bulk retry | dialog + reason + **typed confirmation** (e.g., type the winner count and event slug) + **step-up TOTP** (code entered within the last 5 min) + Super Admin where specified |
+
+Bonus attempts and participant contact (phone) reveal are T3: explicit confirmation + mandatory reason + audit (reveal is per participant and logged each time).
 
 ## 2. Rules
 

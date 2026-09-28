@@ -1,10 +1,21 @@
 # Observability: Logs, Metrics, Alerting
 
-Stack recommendation: self-hosted Prometheus-compatible metrics + Grafana, Loki (or equivalent) for logs, optional OpenTelemetry traces; error tracking self-hosted (e.g., GlitchTip/Sentry self-hosted) — all self-hosted per A-05. Final choice with hosting (OQ-02).
+v1 is right-sized for one small VPS; heavy monitoring stacks are **not** installed on it.
+
+| Concern | v1 (single VPS) | Optional later |
+|---|---|---|
+| Logs | JSON (pino) to journald; `journalctl` queries; size-capped; proxy logs via logrotate | Ship to Loki or another log store on a separate host |
+| Metrics | Fastify exposes Prometheus-format `/metrics` on localhost only; key counters also surfaced in the admin **System health** panel | Prometheus + Grafana on a separate small host |
+| Uptime | External uptime monitor on `/healthz` and `/readyz` (vendor TBD) | — |
+| Alerts | App-level alert hook (webhook to the ops chat/SMS channel — TBD) evaluating the rules in §3, plus uptime-monitor alerts | Alertmanager |
+| Errors | Structured error logs with request ids | Self-hosted GlitchTip/Sentry |
+| Host | Provider graphs + disk/memory/swap checks in the health job | node_exporter |
+
+All tooling is self-hosted or vendor-neutral (A-05).
 
 ## 1. Structured logs
 
-JSON lines (pino). Fields: `ts`, `level`, `service` (api/worker), `requestId`, `route`, `status`, `durationMs`, `actorType`, `participantId` (pseudonymous), `adminId`, `sessionId`, `event`, `errorCode`.
+JSON lines (pino). Fields: `ts`, `level`, `service` (`api`; `jobs` component tag for background tasks), `requestId`, `route`, `status`, `durationMs`, `actorType`, `participantId` (pseudonymous), `adminId`, `sessionId`, `event`, `errorCode`.
 
 Redaction (enforced by logger config + tests):
 | Never log | Mask |
@@ -44,7 +55,7 @@ Retention: 14–30 days (OQ-13).
 | API down | health check fails 1 min | Sev-1 |
 | Error rate | 5xx > 2 % for 5 min | Sev-1 |
 | Result latency | p95 result pipeline > 1 s for 5 min | Sev-2 |
-| DB | pool saturation > 90 % 2 min; replication lag > 30 s; disk > 80 % | Sev-2 |
+| DB / host | pool saturation > 90 % 2 min; disk > 80 %; swap in use > 50 % or memory > 90 % for 5 min; last off-server backup older than its schedule | Sev-2 |
 | OTP | send success < 90 % over 5 min, or p95 send > 10 s | Sev-1 during event hours |
 | Outbox | oldest pending > 15 min or failed > 0 new in 10 min | Sev-3 (Sev-2 if > 1 h) |
 | Rejections spike | `SCORE_MISMATCH` > 1 % of results 10 min | Sev-2 (client bug or cheat) |
@@ -55,8 +66,8 @@ Retention: 14–30 days (OQ-13).
 | SSE | connections drop > 50 % in 1 min | Sev-2 |
 | Certificates | expiry < 14 days | Sev-3 |
 
-Routing: event-day on-call phone + ops chat channel (tooling TBD).
+Routing: app alert hook + uptime monitor → event-day on-call phone + ops chat channel (tooling TBD).
 
-## 4. Event-day dashboard (Grafana)
+## 4. Event-day dashboard
 
-Rows: traffic & errors; OTP funnel; games (sessions/attempts/rejections/flags per game); result latency; DB health; outbox; SSE; rewards inventory; client RUM.
+v1: the admin **System health** panel — traffic & errors, OTP funnel, per-game sessions/attempts/rejections/flags, result latency p95, DB connections, outbox backlog, SSE clients, reward inventory, process memory/CPU, disk/swap, last backup time — plus the uptime monitor. A Grafana board with the same rows is the optional later upgrade.

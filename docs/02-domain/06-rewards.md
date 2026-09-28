@@ -79,7 +79,7 @@ for rule in rules:
 
 - Lock ordering: rules processed in ascending `id` → no deadlocks between concurrent evaluations.
 - Idempotency: unique `(rule_id, source_attempt_id)`; plus the whole evaluation runs once per session submission.
-- If the evaluation throws unexpectedly, the outer savepoint is rolled back, the attempt is still accepted with flag `REWARD_EVAL_DEFERRED`, and the worker re-evaluates later (same unique keys make it safe). The participant sees base result immediately; a deferred reward appears in "my rewards".
+- If the evaluation throws unexpectedly, the outer savepoint is rolled back, the attempt is still accepted with flag `REWARD_EVAL_DEFERRED`, and the `rewards.reevaluate` background job re-evaluates later (same unique keys make it safe). The participant sees base result immediately; a deferred reward appears in "my rewards".
 - Probability rolls use `crypto.randomInt`; the trace (`rule_id`, `roll`, `threshold`, outcome) is stored in `attempt_payloads.evaluation_trace` for audit.
 
 ## 5. Reward grant state machine

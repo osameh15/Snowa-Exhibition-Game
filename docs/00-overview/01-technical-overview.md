@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Phase 0 — Draft for approval |
+| Status | Phase 0 — Complete (final architecture correction applied) |
 | Product source | `docs/source/Snowa_Exhibition_Gaming_Platform_Product_Game_Design_Spec_v1.0.docx` (v1.0, 28 Sep 2026) — referred to as **SPEC** |
 | Audience | Engineering (frontend, game, backend), QA, DevOps, event operations |
 
@@ -16,16 +16,15 @@ The participant experience is **Persian, RTL, mobile-first, browser-first** (PWA
 
 ```mermaid
 flowchart LR
-  subgraph Clients["Untrusted clients"]
-    P["Participant Web App<br/>Nuxt 4 SPA + Phaser 3 (lazy)"]
-    A["Admin Web App<br/>Nuxt 4 SPA"]
-    D["Public Display<br/>(route of Admin app, display token)"]
+  subgraph Clients["Untrusted clients (one Nuxt 4 SPA/PWA)"]
+    P["Participant routes /<br/>+ Phaser 3 (lazy, per game)"]
+    A["Admin routes /admin<br/>(separate admin session + MFA)"]
+    D["Display routes /display<br/>(read-only display session)"]
   end
-  subgraph Platform["Platform (trusted)"]
-    RP["Reverse proxy / TLS<br/>static assets"]
-    API["API service<br/>Node.js + TypeScript (modular monolith)"]
-    W["Worker<br/>(outbox, reconciliation, scheduled jobs)"]
-    DB[("PostgreSQL<br/>source of truth")]
+  subgraph VPS["Single VPS (trusted)"]
+    RP["Nginx or Caddy<br/>TLS · static SPA files · /api proxy"]
+    API["Fastify process (Node.js 22 + TS)<br/>modular monolith: REST · SSE · in-process jobs"]
+    DB[("PostgreSQL 16+<br/>only durable state")]
   end
   OTP["SMS / OTP provider (TBD)"]
   EXT["Snowa External API (contract TBD)"]
@@ -35,24 +34,25 @@ flowchart LR
   D -- "SSE + REST (read-only)" --> RP
   RP --> API
   API <--> DB
-  W <--> DB
   API -- "send OTP (adapter)" --> OTP
-  W -- "deliver results (adapter)" --> EXT
+  API -- "outbox sender job (adapter)" --> EXT
 ```
 
 Key properties:
 
 | Concern | Decision (see ADRs) |
 |---|---|
-| Frontend | Nuxt 4 + Vue 3 + TypeScript, client-rendered SPA; Phaser 3 only inside gameplay routes, lazy-loaded per game ([ADR-001](../11-decisions/ADR-001-frontend-architecture.md), [ADR-006](../11-decisions/ADR-006-game-runtime.md)) |
-| Backend | **Recommended**: Node.js 22 LTS + TypeScript + Fastify, modular monolith with a separate worker entrypoint ([ADR-002](../11-decisions/ADR-002-backend-technology.md)) — pending approval |
-| Persistence | **Recommended**: PostgreSQL 16+ as the only stateful dependency; Redis deferred until load testing proves need ([ADR-004](../11-decisions/ADR-004-persistence.md)) |
-| Real-time | **Recommended**: Server-Sent Events for server→client hints + REST for commands and authoritative state; participants mostly fetch on demand ([ADR-003](../11-decisions/ADR-003-realtime-transport.md)) |
-| Score integrity | Server-authorized sessions + seeded deterministic gameplay + server-side replay of the action log with shared scoring code ([ADR-010](../11-decisions/ADR-010-score-validation.md)) |
+| Frontend | One Nuxt 4 + Vue 3 + TypeScript app delivered as static SPA/PWA; `/admin` and `/display` are code-split routes; Phaser 3 only inside gameplay routes, lazy-loaded per game ([ADR-001](../11-decisions/ADR-001-frontend-architecture.md), [ADR-006](../11-decisions/ADR-006-game-runtime.md)) — **Accepted** |
+| Backend | Node.js 22 + TypeScript + Fastify, one modular-monolith process; background jobs run in-process as a separable `jobs` module ([ADR-002](../11-decisions/ADR-002-backend-technology.md)) — **Accepted** |
+| Persistence | PostgreSQL 16+ as the only durable/stateful service; Redis deferred ([ADR-004](../11-decisions/ADR-004-persistence.md)) — **Accepted** |
+| Real-time | REST + Server-Sent Events + polling fallback, in the same Fastify process ([ADR-003](../11-decisions/ADR-003-realtime-transport.md)) — **Accepted** |
+| Sessions | Server-managed opaque tokens in HttpOnly cookies; separate participant / admin / display namespaces; admin MFA ([ADR-009](../11-decisions/ADR-009-authentication-sessions.md)) — **Accepted** |
+| Score integrity | Server-issued sessions + seeded deterministic gameplay + server-side replay of the action log with shared scoring code ([ADR-010](../11-decisions/ADR-010-score-validation.md)) — **Accepted** |
 | Rewards | Core base ticket as a fixed pipeline step guarded by a unique constraint; extra rewards through a data-driven rule engine with atomic inventory ([ADR-007](../11-decisions/ADR-007-reward-architecture.md)) |
 | Raffle | Server-side weighted selection without replacement from a frozen, persisted eligibility snapshot, using a recorded CSPRNG seed so any draw can be recomputed ([ADR-011](../11-decisions/ADR-011-raffle-selection.md)) |
-| External API | Transactional outbox + adapter; client never calls Snowa ([ADR-008](../11-decisions/ADR-008-external-integration.md)) |
-| Deployment | Container-based, small VM footprint (reverse proxy, 2× API, 1× worker, PostgreSQL); provider TBD ([ADR-012](../11-decisions/ADR-012-deployment-topology.md)) |
+| External API | Transactional PostgreSQL outbox + adapter; client never calls Snowa ([ADR-008](../11-decisions/ADR-008-external-integration.md)) — **Accepted** |
+| Deployment | One VPS: reverse proxy + static Nuxt build + Fastify under systemd + PostgreSQL; no Docker/Redis/broker; incremental scaling path ([ADR-012](../11-decisions/ADR-012-deployment-topology.md)) — **Accepted** |
+| Reuse | Brand profile + configuration + adapters; not multi-tenant ([ADR-013](../11-decisions/ADR-013-reuse-by-configuration.md)) — **Accepted** |
 
 ## 3. Core invariants (non-negotiable, from SPEC §2 and §30.2)
 

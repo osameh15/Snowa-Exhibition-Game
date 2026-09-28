@@ -54,6 +54,9 @@ Method: STRIDE per trust boundary ([Trust boundaries](../01-architecture/09-trus
 | T-20 | Tampering | Offensive/bidi-spoofed names on public display | Name normalization, bidi-control stripping, deny-list, hide-name moderation | Low–Medium |
 | T-21 | Information disclosure | Secrets in logs/client | Secret scanning in CI, log redaction, no secrets in bundles | Low |
 | T-22 | Tampering | Multi-account farming (many SIMs) | One account per phone; cannot fully prevent; analytics on device fingerprints *not* used (privacy) — accepted business risk | **Medium (accepted)** |
+| T-24 | Elevation | XSS in a participant route (same origin as `/admin`) issues admin API calls from an operator's browser | Strict self-only CSP, no untrusted `v-html`, cookie `Path` scoping, admin `SameSite=Strict`, step-up TOTP for T4, dedicated browser profile for operators; optional separate admin subdomain later | Low–Medium |
+| T-25 | Spoofing | Participant or display session used against admin APIs | Separate namespaces: each middleware accepts only its own cookie; display sessions read-only; tests for cross-namespace rejection | Low |
+| T-26 | Availability | Single VPS failure during event | Off-server backups, restore drill, rebuild runbook, uptime alerts, client-side pending results with late window | **Medium (accepted)** |
 | T-23 | Supply chain | Malicious npm dependency | Lockfile, pinned versions, `npm audit`/OSV scanning, minimal deps, SRI not applicable (self-hosted) | Low–Medium |
 
 ## 4. Accepted risks (require business acknowledgment)
@@ -61,3 +64,6 @@ Method: STRIDE per trust boundary ([Trust boundaries](../01-architecture/09-trus
 - T-02 scripted plausible scores (browser games cannot be cheat-proof) [SPEC §21.1].
 - T-22 multiple phone numbers per person.
 - Ambiguous external API duplicates if Snowa lacks idempotency (R-05).
+- T-26 single-VPS availability risk for a temporary exhibition (ADR-012).
+
+Infrastructure right-sizing (single VPS, no Docker/Redis/worker) changes **no** control in this table: authentication, session, CSRF/Origin, rate limiting, anti-cheat, raffle, reward, audit and durability controls are identical to a multi-server deployment.

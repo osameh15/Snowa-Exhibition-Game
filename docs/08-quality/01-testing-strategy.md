@@ -32,7 +32,7 @@
 - Best score: sequence 6200 → 4100 → 7900 → best 7900; equal score keeps earlier `best_achieved_at`.
 - Tie-break ordering with identical scores and timestamps.
 - Reward inventory: 100 concurrent eligible results, `total_limit = 10` → exactly 10 grants; code pool of 5 → exactly 5 codes assigned, no duplicates.
-- Outbox: result committed even when Snowa fake returns 500/timeouts; retries scheduled; lease recovery after worker kill.
+- Outbox: result committed even when Snowa fake returns 500/timeouts; retries scheduled; lease recovery after process kill/restart.
 - Draw: fixture population → expected eligible counts per filter; winners reproducible from stored seed; no duplicate winners; idempotent execute.
 - Invalidation recomputes best/rank correctly.
 

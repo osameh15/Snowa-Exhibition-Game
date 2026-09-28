@@ -9,7 +9,7 @@ SMS delivery is on the critical onboarding path; provider availability, template
 - Domain code depends on an `OtpSender` port: `send(phoneE164, code, locale) → {accepted, providerMessageId} | {error: TRANSIENT|PERMANENT, category}`.
 - The platform generates, hashes and verifies codes itself (provider only delivers text). Avoid provider-side "verify" APIs so verification rules (attempts, TTL, supersede) stay under platform control and switching vendors is trivial.
 - Adapters: `FakeOtpSender` (dev/CI/staging-optional, blocked in production), `<Vendor>OtpSender` (TBD), optional secondary vendor with automatic failover when the primary returns transient errors for > N% in 2 min (config).
-- Message template (Persian) includes the WebOTP line `@play.<domain> #<code>` if the vendor allows free-text or an approved template supports it.
+- Message template (Persian) includes the WebOTP line `@snowa-games.osameh.dev #<code>` (staging host; production host TBD) if the vendor allows free-text or an approved template supports it.
 - Timeouts 5 s; no retries inside the request beyond one fast retry on connect error (to avoid double SMS); the participant can resend after cooldown.
 
 ## Vendor evaluation checklist

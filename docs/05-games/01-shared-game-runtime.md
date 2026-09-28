@@ -77,7 +77,7 @@ Final 5 seconds: timer emphasis (color + scale + tick sound; not color-only).
 | Resume | Requires explicit tap; 3-2-1 resume countdown (not gameplay time) |
 | Pause budget | Σ pause durations ≤ `pauseBudgetMs` (default 60 s). When exceeded (checked on resume or by timer while visible) → game ends immediately with current score, `endReason: PAUSE_BUDGET_EXHAUSTED` |
 | Playfield while paused | Covered by opaque overlay (prevents studying Vision Hunt scenes / Fridge trays while the clock is stopped) |
-| Page reload / crash during PLAYING | Not resumable. Attempt remains STARTED until late deadline → ABANDONED (OQ-15) |
+| Page reload / crash during PLAYING | Not resumable. Attempt remains STARTED until late deadline → ABANDONED (approved policy, OQ-15 resolved) |
 | Network loss during PLAYING | No effect; gameplay is local. Submission retries later |
 
 ## 7. End of game and submission

@@ -23,14 +23,14 @@ flowchart LR
   ID --> OS --> OA
   OS -.-> OF
   PL --> RS
-  RS -->|external_deliveries| W["worker"] --> SA
+  RS -->|external_deliveries| W["jobs: outbox sender<br/>(in-process in v1)"] --> SA
   W -.-> SF
 ```
 
 | Port | Sync/async | Failure isolation |
 |---|---|---|
 | `OtpSender` | Synchronous call with 5 s timeout during `POST /auth/otp/request` | Failure → challenge marked `SEND_FAILED`, participant sees retry; no challenge code leaked |
-| `ResultPublisher` | Asynchronous via transactional outbox | External outage never blocks result response [SPEC §17.2] |
+| `ResultPublisher` → `ExternalResultAdapter` (`SnowaResultAdapter` for this brand) | Asynchronous via transactional outbox | External outage never blocks result response [SPEC §17.2] |
 
 ## 2. Snowa result delivery flow
 
@@ -38,12 +38,12 @@ flowchart LR
 sequenceDiagram
   participant API as api (submit tx)
   participant DB as PostgreSQL
-  participant W as worker
+  participant W as Outbox sender (jobs)
   participant AD as SnowaResultAdapter
   participant EXT as Snowa API
   API->>DB: INSERT attempt, UPDATE best, INSERT external_delivery(PENDING, payload snapshot) — same tx
   API-->>API: COMMIT, respond to participant
-  API->>DB: NOTIFY outbox
+  API->>W: wake sender (in-process)
   W->>DB: SELECT … WHERE status IN (PENDING, RETRY_SCHEDULED) AND next_attempt_at ≤ now() FOR UPDATE SKIP LOCKED
   W->>DB: status=IN_FLIGHT, attempt_count+1
   W->>AD: deliver(canonicalPayload, idempotencyKey)

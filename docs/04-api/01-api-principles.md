@@ -51,7 +51,7 @@ No human-readable message is shown to participants; the client maps `code` → P
 |---|---|
 | 400 | `VALIDATION_FAILED` (details: field paths), `PHONE_INVALID`, `NAME_INVALID` |
 | 401 | `UNAUTHENTICATED`, `SESSION_EXPIRED` |
-| 403 | `FORBIDDEN`, `PROFILE_INCOMPLETE`, `PARTICIPANT_BLOCKED`, `CONSENT_REQUIRED`, `MFA_REQUIRED` |
+| 403 | `FORBIDDEN`, `PROFILE_INCOMPLETE`, `PARTICIPANT_BLOCKED`, `CONSENT_REQUIRED`, `MFA_REQUIRED`, `STEP_UP_REQUIRED` |
 | 404 | `NOT_FOUND` (also used for other participants' resources — no existence leak) |
 | 409 | `GAME_UNAVAILABLE`, `EVENT_NOT_LIVE`, `ATTEMPTS_EXHAUSTED`, `SESSION_ALREADY_ACTIVE`, `SESSION_NOT_STARTED`, `SESSION_EXPIRED`, `RESULT_ALREADY_SUBMITTED`, `CHALLENGE_USED`, `VERSION_CONFLICT`, `REQUEST_IN_PROGRESS`, `DRAW_STATE_INVALID` |
 | 410 | `OTP_EXPIRED` |
@@ -62,7 +62,7 @@ No human-readable message is shown to participants; the client maps `code` → P
 
 ## 5. Security headers and transport
 
-HTTPS only (HSTS), `Content-Security-Policy` with self-only sources (+ `blob:` for Phaser workers if needed), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimal. Cookies: `HttpOnly; Secure; SameSite=Lax; Path=/`. CSRF: SameSite=Lax + required custom header `X-Requested-With: sx` on all mutating requests + `Origin` check.
+HTTPS only (HSTS), `Content-Security-Policy` with self-only sources (+ `blob:` for Phaser workers if needed), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimal. Cookies (one origin, three namespaces — [ADR-009](../11-decisions/ADR-009-authentication-sessions.md)): participant `sx_ps` (`SameSite=Lax; Path=/api/v1`), admin `sx_as` (`SameSite=Strict; Path=/api/admin`), display `sx_ds` (`SameSite=Strict; Path=/api/display`), all `HttpOnly; Secure`. Each namespace's middleware accepts only its own cookie. CSRF: SameSite + required custom header `X-Requested-With: sx` on all mutating requests + `Origin` must equal the deployment origin. `/admin/*` and `/display/*` responses add `X-Robots-Tag: noindex, nofollow, noarchive`.
 
 ## 6. Authorization rule
 

@@ -1,22 +1,29 @@
 # ADR-012: Deployment Topology
 
-Status: **Proposed** (provider/region pending OQ-02)
+Status: **Accepted** for staging and exhibition v1 (resolves OQ-02 for Phase 1 direction; hosting vendor TBD and non-blocking)
 
 ## Context
-Short-lived, high-visibility event; small team; unknown hosting; possible restrictions on foreign cloud/CDN services; need for predictable operations and fast rollback.
+Temporary, high-visibility exhibition; small team; low budget; possible restrictions on foreign cloud/CDN services; need for predictable operations and fast rollback. Security and integrity must not be simplified.
 
 ## Options
 | Option | Assessment |
 |---|---|
-| Kubernetes | Powerful; operational overhead unjustified at this scale |
-| **Docker containers on 2 VMs + managed/self-hosted PostgreSQL** | Simple, portable to any provider (domestic or international), rolling restarts via Compose/scripts |
-| PaaS (e.g., app platforms) | Easiest if available in the chosen region; availability uncertain |
-| Serverless | Poor fit for SSE and workers; vendor lock-in |
+| Kubernetes | Unjustified overhead |
+| Docker on several VMs + managed PostgreSQL | More moving parts and cost than needed for v1 |
+| PaaS | Availability in target region uncertain |
+| Serverless | Poor fit for SSE and background jobs |
+| **One VPS: reverse proxy + static Nuxt build + one Fastify process (systemd) + PostgreSQL** | Cheapest and simplest; portable to any Linux VPS vendor |
 
 ## Decision
-Containerized `api` (×2), `worker` (×1), reverse proxy (Caddy or Nginx) with static bundles, PostgreSQL (managed preferred). Provider-agnostic scripts/Compose files; infrastructure documented as code where the provider allows. All runtime dependencies self-hosted.
+- **Staging:** `https://snowa-games.osameh.dev`; Ubuntu Server 24.04 LTS; 1 vCPU / 2 GB RAM / 25–30 GB SSD/NVMe / ~2 GB swap; static IPv4; ≥ ~100 Mbps; prefer location close to Iranian users.
+- **Exhibition production starting point:** 2 vCPU / 4 GB RAM / 40–50 GB SSD/NVMe, PostgreSQL on the same VPS; final size from load-test evidence.
+- Nginx **or** Caddy, Let's Encrypt TLS, static SPA files, `/api` proxy with SSE streaming.
+- Fastify supervised by `systemd` (no PM2, no Docker requirement), dedicated service user.
+- Off-server encrypted backups (daily minimum; tighter RPO for event production).
+- No Redis, Kubernetes, message broker, separate worker or separate frontend deployment in v1.
+- Incremental scaling path: larger VPS → separate PostgreSQL → separate worker → multiple Fastify instances → optional Redis ([Deployment topology §5](../01-architecture/10-deployment-topology.md#5-incremental-scaling-path-future-options-not-v1-requirements)).
 
 ## Consequences
-+ Portable across providers; minimal moving parts; easy to rehearse.
-− Manual-ish scaling (add a VM/replica) — acceptable given known event dates.
-− If the provider lacks managed PostgreSQL, the team owns replication/backups (document and drill).
++ Very low cost and operational surface; easy rehearsal and rebuild.
+− Single point of failure; deploys cause a brief (seconds) restart gap → mitigated by idempotent client retries, late-submission window, deploys outside peak, fast restore procedure.
+− Vertical limits → scaling stages available without re-architecture.

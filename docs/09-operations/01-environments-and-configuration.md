@@ -2,32 +2,32 @@
 
 ## 1. Environments
 
-| Env | Purpose | Data | Integrations | Access |
-|---|---|---|---|---|
-| `local` | Development | Seeded fixtures | Fake OTP, fake Snowa | Developers |
-| `ci` | Automated tests | Ephemeral (Testcontainers) | Fakes | CI |
-| `staging` | QA, device tests, load tests, rehearsal | Synthetic; production-like volume for load | Real SMS provider test mode or fake (flag); Snowa sandbox (TBD) or fake receiver | Team + stakeholders; banner "محیط آزمایشی" |
-| `production` (event) | Live exhibition | Real | Real SMS, real Snowa | Restricted; admin origin allowlisted if possible |
+| Env | Purpose | Host | Data | Integrations | Access |
+|---|---|---|---|---|---|
+| `local` | Development | Developer machine (Node.js 22 + local PostgreSQL 16) | Seeded fixtures | Fake OTP, fake Snowa receiver | Developers |
+| `ci` | Automated tests | CI runner (PostgreSQL service/Testcontainers in CI only) | Ephemeral | Fakes | CI |
+| `staging` | QA, device tests, load tests, rehearsal | **`https://snowa-games.osameh.dev`** — one VPS (Ubuntu 24.04, 1 vCPU / 2 GB / 25–30 GB, ~2 GB swap), PostgreSQL on the same VPS | Synthetic | Real SMS vendor test mode or fake (flag); Snowa sandbox (TBD) or fake receiver | Team + stakeholders; persistent banner "محیط آزمایشی"; optional proxy basic auth / IP allowlist |
+| `production` (event) | Live exhibition | One VPS (starting 2 vCPU / 4 GB / 40–50 GB), PostgreSQL on the same VPS; domain TBD (OQ-27) | Real | Real SMS, real Snowa | Restricted |
 
-Production and staging have separate databases, secrets, domains, SMS sender configurations and admin accounts. No production data is copied to staging (privacy); if needed, only anonymized.
+No managed database is required for staging or production v1 ([ADR-004](../11-decisions/ADR-004-persistence.md)). Production and staging never share databases, secrets, SMS sender configuration or admin accounts. Production data is never copied to staging (privacy).
 
 ## 2. Configuration layers
 
 | Layer | Examples | Changed by | Requires deployment |
 |---|---|---|---|
-| Build-time | API base path, build hash, feature compile flags | CI | yes |
-| Environment (env vars) | DB URL, SMS adapter selection, Snowa base URL, log level, allowed origins, fake-OTP flag (must be `false` in production, startup assertion) | DevOps | restart |
-| Secrets | DB password, SMS API key, Snowa credentials, OTP pepper, session/IP hash keys, TOTP encryption key | DevOps via secret store | restart |
-| Event policy (DB) | OTP parameters, pause budget, late window, public identity policy, numeral policy, consent flag, core ticket policy, rate-limit values | Super Admin (audited) | no |
+| Build-time (web) | API base path, build hash, active brand key (`BRAND=snowa`) | CI | yes |
+| Environment (server) | `DATABASE_URL`, `PUBLIC_ORIGIN`, `JOBS_ENABLED` (true in v1), `OTP_ADAPTER`, `EXTERNAL_RESULT_ADAPTER`, Snowa base URL, log level, `FAKE_OTP` (must be false in production — startup assertion) | Operator | restart |
+| Secrets | DB password, SMS API key, Snowa credentials, OTP pepper, session/IP hash keys, TOTP encryption key | Operator | restart |
+| Event policy (DB) | OTP parameters, pause budget, late window, public identity, numerals, consent flag, core ticket policy, rate limits | Super Admin (audited) | no |
 | Live controls (DB) | game state, attempt limits, reward rules, displays | Admin/Operator | no |
 | Game config versions (DB, immutable) | tuning params, bounds | Super Admin publish (between event days) | no, unless new code needed |
-| Locale (`i18n-fa`) | Persian copy | Content owner via PR | yes (static) |
+| Brand profile (`brands/<key>/`) | logo, tokens, copy, game titles/assets | Content owner via PR | yes (static) |
 
-Startup validation: the API refuses to start if required config is missing/invalid, or if production runs with fake adapters.
+Startup validation: Fastify refuses to start if required configuration is missing/invalid, if production runs with fake adapters, or if `PUBLIC_ORIGIN` is not HTTPS.
 
 ## 3. Secrets management
 
-- Stored in the provider's secret manager, or in an encrypted file (SOPS/age) deployed to hosts with root-only permissions if no manager exists (OQ-02).
-- Never in git, images, client bundles or logs; CI secret scanning.
-- Rotation: all production secrets generated fresh before the event; rotate SMS/Snowa credentials after the event.
-- Peppers/HMAC keys: changing them invalidates OTP challenges / phone hashes — rotate only with a documented procedure.
+- Stored outside source control in a root-owned environment file referenced by the systemd unit (`EnvironmentFile=/etc/snowa-games/server.env`, mode `0600`, owner `root`, read by systemd before dropping privileges), or systemd credentials (`LoadCredential=`). Encrypted copies of the files are kept in the team's password manager/vault.
+- Never in git, client bundles, logs or backups of the repository; CI secret scanning.
+- Separate secrets per environment; generated fresh before the event; SMS/Snowa credentials rotated after the event.
+- Peppers/HMAC keys: rotating them invalidates OTP challenges / phone hashes — documented procedure only.

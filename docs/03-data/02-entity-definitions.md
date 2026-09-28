@@ -58,6 +58,7 @@ Retention: 30 days (OQ-13) — used for abuse investigation only.
 | slug | text | UQ |
 | name_fa | text | |
 | status | text | CK (`DRAFT`,`LIVE`,`PAUSED`,`CLOSED`) |
+| brand_key | text | brand profile key (e.g., `snowa`) — see [Reuse & branding](../01-architecture/14-reuse-and-branding.md) |
 | timezone | text | default `Asia/Tehran` |
 | starts_at / ends_at | timestamptz | OQ-22 |
 | policies | jsonb | validated schema: `core_ticket` (incl. `min_score_for_base_ticket`, OQ-18), `pause_budget_ms`, `submit_grace_ms`, `late_submission_window_ms`, `public_identity`, `numeral_policy`, `require_consent`, `otp`, `draw_defaults` |
@@ -227,6 +228,6 @@ PK `(draw_id, position)`; `participant_id`; UQ `(draw_id, participant_id)` (INV-
 - `admin_sessions`: like participant sessions + `idle_expires_at`, `ip_prefix`, `mfa_verified_at`.
 - `display_devices`: `id`, `event_id`, `name`, `token_hash` UQ, `mode jsonb`, `last_seen_at`, `revoked_at`.
 - `audit_log`: see [Audit model](../02-domain/08-audit-model.md).
-- `idempotency_keys`: PK `(scope, key)` where scope = `participant:<id>` / `admin:<id>` / `anon:<ip-prefix>`; `request_hash`, `status` (`IN_PROGRESS`,`COMPLETED`), `response_code`, `response_body jsonb`, `created_at`; TTL 24 h (purged by worker).
+- `idempotency_keys`: PK `(scope, key)` where scope = `participant:<id>` / `admin:<id>` / `anon:<ip-prefix>`; `request_hash`, `status` (`IN_PROGRESS`,`COMPLETED`), `response_code`, `response_body jsonb`, `created_at`; TTL 24 h (purged by a background job).
 - `rate_limit_buckets`: PK `(scope, key, window_start)`, `count integer`; fixed-window counters updated with `INSERT … ON CONFLICT DO UPDATE SET count = count + 1 RETURNING count`; purged hourly. Replaced by Redis if load tests require (ADR-004).
 - `analytics_events`: `id bigint`, `event text`, `occurred_at`, `received_at`, `anon_id uuid`, `participant_id uuid null`, `game_id`, `props jsonb`; IX `(event, occurred_at)`; optional daily partitioning.

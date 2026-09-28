@@ -12,7 +12,7 @@ flowchart TB
   subgraph SYS["Snowa Exhibition Gaming Platform"]
     PA["Participant app"]
     ADM["Admin app + display mode"]
-    BE["Backend (API + worker + DB)"]
+    BE["Backend (Fastify process + PostgreSQL)"]
   end
 
   SMS["SMS / OTP provider<br/>(vendor TBD — OQ-03)"]

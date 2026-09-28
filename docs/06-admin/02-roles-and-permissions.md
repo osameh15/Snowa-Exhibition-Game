@@ -1,6 +1,6 @@
 # Admin Roles and Permissions
 
-Source: SPEC §3. Roles are fixed in code (no role editor in v1); assignment by Super Admin. Authentication method is **assumed** local accounts + TOTP (OQ-21).
+Source: SPEC §3. Roles are fixed in code (no role editor in v1); assignment by Super Admin. Authentication: local accounts + Argon2id + mandatory TOTP (ADR-009 accepted; OQ-21 resolved).
 
 ## 1. Roles
 
@@ -52,8 +52,9 @@ The matrix is an assumption for approval (the SPEC gives role purposes, not exac
 ## 3. Admin account rules
 
 - Unique named accounts (no shared logins), including booth staff.
-- Password ≥ 12 chars, argon2id; TOTP mandatory for all roles (assumption A-12, OQ-21).
+- Password ≥ 12 chars, argon2id; TOTP mandatory for all roles (ADR-009).
 - Idle timeout: 30 min (Operator 8 h on dedicated booth devices if approved); absolute session 12 h.
 - Lockout: 5 failed logins → 15 min lock + audit + alert.
-- Optional IP allowlist for `admin.<domain>` (venue + office ranges).
+- Optional defense in depth: reverse-proxy IP allowlist / VPN for `/admin` and `/api/admin` (venue + office ranges). Core security never depends on it.
+- Step-up TOTP for T4 operations; separate admin session namespace; participant and display sessions can never call admin APIs.
 - Super Admin accounts: ≤ 3, used only for sensitive operations.

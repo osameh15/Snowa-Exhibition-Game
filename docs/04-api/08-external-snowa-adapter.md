@@ -7,7 +7,7 @@ Source: SPEC §17, PD-11, AC-018, API-001, API-002. Decision: [ADR-008](../11-de
 ```mermaid
 flowchart LR
   RP["Result pipeline"] -->|"canonical model (in tx)"| OB[("external_deliveries")]
-  OB --> WK["worker: DeliveryRunner"]
+  OB --> WK["jobs: outbox sender (in-process in v1)"]
   WK --> AD["SnowaResultAdapter"]
   AD --> MAP["Mapper: canonical → external payload (TBD)"]
   AD --> TR["Transport: HTTPS, auth (TBD), timeouts"]
@@ -42,7 +42,7 @@ See [Integration architecture §3](../01-architecture/08-integration-architectur
 | Endpoint URL, method | config | TBD |
 | Authentication (API key / OAuth2 client credentials / HMAC signature / mTLS) | secret store | TBD |
 | Response success/error schema | classifier | TBD |
-| Rate limits | worker concurrency config | TBD |
+| Rate limits | sender concurrency config | TBD |
 | Sandbox environment | staging config | TBD |
 
 Example of the SPEC's minimum business payload (not a confirmed contract):
@@ -58,7 +58,7 @@ Example of the SPEC's minimum business payload (not a confirmed contract):
 | Participant impact | None — result response never waits for Snowa |
 | Idempotency | `external_deliveries.id` sent as `Idempotency-Key` header (or body field) **if Snowa supports it**; otherwise duplicates on retry are possible after ambiguous timeouts — documented risk R-05 |
 | Delivery mode (OQ-04) | `EVERY_ACCEPTED_ATTEMPT` (default: one delivery per valid attempt, payload score = best at that time) or `BEST_SCORE_CHANGES_ONLY` (only when `is_new_best` or first completion) |
-| Ordering per participant + game | Worker delivers deliveries of the same `(participant, game)` in `created_at` order (claims only the oldest undelivered per pair). If a newer delivery exists and mode is best-score semantics, an older `RETRY_SCHEDULED` one MAY be marked `SUPERSEDED` (configurable) to avoid regressing the receiver's value |
+| Ordering per participant + game | The sender delivers deliveries of the same `(participant, game)` in `created_at` order (claims only the oldest undelivered per pair). If a newer delivery exists and mode is best-score semantics, an older `RETRY_SCHEDULED` one MAY be marked `SUPERSEDED` (configurable) to avoid regressing the receiver's value |
 | Concurrency | Default 4 in-flight requests; configurable to match Snowa rate limits |
 | Timeouts | connect 3 s, total 10 s |
 | Lease | `IN_FLIGHT` rows have `locked_until = now + 60 s`; expired leases are reclaimed (crash recovery) |
@@ -82,12 +82,12 @@ Example of the SPEC's minimum business payload (not a confirmed contract):
 ```mermaid
 stateDiagram-v2
   [*] --> PENDING: enqueued in result tx
-  PENDING --> IN_FLIGHT: claimed by worker (lease)
+  PENDING --> IN_FLIGHT: claimed by sender (lease)
   RETRY_SCHEDULED --> IN_FLIGHT: next_attempt_at reached
   IN_FLIGHT --> DELIVERED: SUCCESS
   IN_FLIGHT --> RETRY_SCHEDULED: RETRYABLE (age < 24 h)
   IN_FLIGHT --> FAILED: PERMANENT or age ≥ 24 h
-  IN_FLIGHT --> RETRY_SCHEDULED: lease expired (worker crash)
+  IN_FLIGHT --> RETRY_SCHEDULED: lease expired (process crash/restart)
   RETRY_SCHEDULED --> SUPERSEDED: newer delivery for same participant+game (best-score mode)
   FAILED --> PENDING: operator retry (audited)
   FAILED --> RESOLVED_MANUALLY: operator resolves with note (audited)
@@ -103,12 +103,12 @@ sequenceDiagram
   autonumber
   participant API as api (result tx)
   participant DB as PostgreSQL
-  participant W as worker
+  participant W as Outbox sender (jobs)
   participant A as SnowaResultAdapter
   participant S as Snowa API
   participant OPS as Admin (Integrations)
   API->>DB: INSERT external_deliveries(PENDING, payload) — same tx as attempt
-  API->>DB: COMMIT · NOTIFY outbox
+  API->>DB: COMMIT · wake outbox sender (in-process)
   W->>DB: claim oldest due per (participant, game) FOR UPDATE SKIP LOCKED → IN_FLIGHT, locked_until
   W->>A: map(payload) → request
   A->>S: POST (auth TBD, Idempotency-Key = delivery id)
@@ -140,5 +140,5 @@ sequenceDiagram
 
 - Credentials only in server secret store; never in client bundles, logs, or delivery records.
 - Response excerpts stored ≤ 1 KB with tokens/PII redacted.
-- Outbound allowlist: worker egress only to the configured Snowa host (firewall rule when infrastructure allows).
+- Outbound allowlist: server egress only to the configured Snowa host (firewall rule when infrastructure allows).
 - The participant's phone number is transmitted only because the business contract requires it (SPEC §17.1); privacy review in [Privacy](../07-security/07-privacy-and-data-protection.md).

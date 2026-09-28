@@ -74,11 +74,10 @@ sequenceDiagram
   autonumber
   participant API as API (submit)
   participant DB as PostgreSQL
-  participant HUB as Realtime hub (each replica)
+  participant HUB as Realtime hub (SSE)
   participant ADM as Admin / Display / viewers
   API->>DB: COMMIT attempt + progress (new best)
-  API->>DB: NOTIFY rt {type: best_score_changed, game, participantId, bestScore}
-  DB-->>HUB: notification (all replicas)
+  API-->>HUB: publish on RealtimeBus (after commit)
   HUB->>HUB: coalesce per game (≤ 1 leaderboard_changed / s)
   HUB-->>ADM: event leaderboard_changed {game, topChanged: bool, asOf}
   ADM->>API: GET /leaderboards/:game?limit=20 (or admin variant)
@@ -102,5 +101,5 @@ sequenceDiagram
 ## 6. Scale concerns
 
 - Write hot spots: none shared across participants (each submit locks only its own progress row).
-- Read hot spot: top-N — served from 1 s cache; at most (replicas × games) queries/s.
+- Read hot spot: top-N — served from 1 s cache; at most (instances × games) queries/s — one instance in v1.
 - Rank for deep positions: O(rank) index scan; acceptable to ~100k rows. Load test verifies (see [Load testing](../08-quality/04-load-and-resilience-testing.md)).

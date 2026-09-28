@@ -55,7 +55,7 @@ BEGIN
   update progress best_* (or NULL)
   apply ticket policy (OQ-23)
   audit; enqueue CORRECTION delivery if contract supports (OQ-04)
-COMMIT → NOTIFY best_score_changed / leaderboard_changed
+COMMIT → publish best_score_changed / leaderboard_changed on RealtimeBus
 ```
 
 ### T-DRAW-EXECUTE
